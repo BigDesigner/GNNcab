@@ -1,0 +1,1969 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 1.0.0
+  description: GNNcab - Multi-city ride dispatch and driver tracking platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: users
+    description: User management
+  - name: cities
+    description: City management
+  - name: zones
+    description: Zone management
+  - name: drivers
+    description: Driver management
+  - name: trips
+    description: Trip lifecycle management
+  - name: payments
+    description: Payment management
+  - name: audit
+    description: Audit logs
+  - name: dispatch
+    description: Dispatch engine
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cities:
+    get:
+      operationId: getCities
+      tags: [cities]
+      summary: Get all cities
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of cities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/City"
+    post:
+      operationId: createCity
+      tags: [cities]
+      summary: Create a city (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCityRequest"
+      responses:
+        "201":
+          description: City created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/City"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cities/{cityId}:
+    get:
+      operationId: getCity
+      tags: [cities]
+      summary: Get a city by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cityId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: City details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/City"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateCity
+      tags: [cities]
+      summary: Update a city (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cityId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCityRequest"
+      responses:
+        "200":
+          description: City updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/City"
+
+  /cities/{cityId}/zones:
+    get:
+      operationId: getZonesByCity
+      tags: [zones]
+      summary: Get zones for a city
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cityId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Zone"
+    post:
+      operationId: createZone
+      tags: [zones]
+      summary: Create a zone (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cityId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateZoneRequest"
+      responses:
+        "201":
+          description: Zone created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+
+  /zones/{zoneId}:
+    get:
+      operationId: getZone
+      tags: [zones]
+      summary: Get a zone by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Zone details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+    put:
+      operationId: updateZone
+      tags: [zones]
+      summary: Update a zone (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateZoneRequest"
+      responses:
+        "200":
+          description: Zone updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+
+  /drivers:
+    get:
+      operationId: getDrivers
+      tags: [drivers]
+      summary: Get all drivers (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [AVAILABLE, BUSY, OFFLINE]
+        - name: cityId
+          in: query
+          schema:
+            type: string
+        - name: zoneId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Paginated list of drivers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriversListResponse"
+
+  /drivers/nearby:
+    get:
+      operationId: getNearbyDrivers
+      tags: [drivers]
+      summary: Get nearby available drivers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Nearby drivers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NearbyDriver"
+
+  /drivers/{driverId}:
+    get:
+      operationId: getDriver
+      tags: [drivers]
+      summary: Get driver by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Driver details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverDetails"
+
+  /drivers/{driverId}/status:
+    put:
+      operationId: updateDriverStatus
+      tags: [drivers]
+      summary: Update driver online/offline status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDriverStatusRequest"
+      responses:
+        "200":
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverDetails"
+
+  /drivers/{driverId}/zones:
+    get:
+      operationId: getDriverZones
+      tags: [drivers]
+      summary: Get zones assigned to a driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Driver zone assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Zone"
+    post:
+      operationId: assignDriverToZone
+      tags: [drivers]
+      summary: Assign driver to zone (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignZoneRequest"
+      responses:
+        "200":
+          description: Zone assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /trips:
+    get:
+      operationId: getTrips
+      tags: [trips]
+      summary: Get trips (filtered by role)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: driverId
+          in: query
+          schema:
+            type: string
+        - name: customerId
+          in: query
+          schema:
+            type: string
+        - name: cityId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated list of trips
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripsListResponse"
+    post:
+      operationId: createTrip
+      tags: [trips]
+      summary: Request a new trip
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTripRequest"
+      responses:
+        "201":
+          description: Trip created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trips/{tripId}:
+    get:
+      operationId: getTrip
+      tags: [trips]
+      summary: Get trip by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trip details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetails"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trips/{tripId}/status:
+    put:
+      operationId: updateTripStatus
+      tags: [trips]
+      summary: Update trip status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTripStatusRequest"
+      responses:
+        "200":
+          description: Trip status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+        "400":
+          description: Invalid transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trips/{tripId}/events:
+    get:
+      operationId: getTripEvents
+      tags: [trips]
+      summary: Get events for a trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trip events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TripEvent"
+
+  /trips/{tripId}/cancel:
+    post:
+      operationId: cancelTrip
+      tags: [trips]
+      summary: Cancel a trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelTripRequest"
+      responses:
+        "200":
+          description: Trip cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+
+  /payments:
+    get:
+      operationId: getPayments
+      tags: [payments]
+      summary: Get payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Paginated payments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsListResponse"
+
+  /payments/{paymentId}:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get payment by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /audit/logs:
+    get:
+      operationId: getAuditLogs
+      tags: [audit]
+      summary: Get audit logs (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: entity
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: actorId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogsListResponse"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [audit]
+      summary: Get admin dashboard stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [users]
+      summary: Get all users (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [admin, driver, customer]
+        - name: page
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersListResponse"
+
+  /admin/users/{userId}:
+    get:
+      operationId: getAdminUser
+      tags: [users]
+      summary: Get user by ID (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    put:
+      operationId: updateAdminUser
+      tags: [users]
+      summary: Update user (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /driver/profile:
+    get:
+      operationId: getDriverProfile
+      tags: [drivers]
+      summary: Get current driver profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Driver profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverDetails"
+    put:
+      operationId: updateDriverProfile
+      tags: [drivers]
+      summary: Update current driver profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDriverProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverDetails"
+
+  /driver/trips:
+    get:
+      operationId: getDriverTrips
+      tags: [trips]
+      summary: Get trips for current driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Driver trips
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripsListResponse"
+
+  /customer/profile:
+    get:
+      operationId: getCustomerProfile
+      tags: [users]
+      summary: Get current customer profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Customer profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+    put:
+      operationId: updateCustomerProfile
+      tags: [users]
+      summary: Update current customer profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCustomerProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+
+  /customer/trips:
+    get:
+      operationId: getCustomerTrips
+      tags: [trips]
+      summary: Get trips for current customer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Customer trips
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripsListResponse"
+
+  /routing/estimate:
+    post:
+      operationId: getRouteEstimate
+      tags: [dispatch]
+      summary: Get route estimate and ETA
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteEstimateRequest"
+      responses:
+        "200":
+          description: Route estimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteEstimate"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+        - error
+        - message
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [driver, customer]
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required:
+        - token
+        - user
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [admin, driver, customer]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - role
+        - isActive
+        - createdAt
+        - updatedAt
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        isActive:
+          type: boolean
+
+    UsersListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserProfile"
+        total:
+          type: number
+        page:
+          type: number
+        limit:
+          type: number
+        totalPages:
+          type: number
+      required:
+        - data
+        - total
+        - page
+        - limit
+        - totalPages
+
+    City:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        country:
+          type: string
+        state:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+        isActive:
+          type: boolean
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - country
+        - timezone
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateCityRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        country:
+          type: string
+        state:
+          type: string
+        timezone:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        isActive:
+          type: boolean
+      required:
+        - name
+        - country
+        - timezone
+
+    Zone:
+      type: object
+      properties:
+        id:
+          type: string
+        cityId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        polygon:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coordinate"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - cityId
+        - name
+        - isActive
+        - polygon
+        - createdAt
+        - updatedAt
+
+    Coordinate:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+      required:
+        - lat
+        - lng
+
+    CreateZoneRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        polygon:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coordinate"
+      required:
+        - name
+        - polygon
+
+    DriverDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        licenseNumber:
+          type: string
+          nullable: true
+        vehicleMake:
+          type: string
+          nullable: true
+        vehicleModel:
+          type: string
+          nullable: true
+        vehicleYear:
+          type: number
+          nullable: true
+        vehicleColor:
+          type: string
+          nullable: true
+        vehiclePlate:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [AVAILABLE, BUSY, OFFLINE]
+        isVerified:
+          type: boolean
+        currentLat:
+          type: number
+          nullable: true
+        currentLng:
+          type: number
+          nullable: true
+        lastSeen:
+          type: string
+          format: date-time
+          nullable: true
+        cityId:
+          type: string
+          nullable: true
+        rating:
+          type: number
+          nullable: true
+        totalTrips:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - email
+        - firstName
+        - lastName
+        - status
+        - isVerified
+        - totalTrips
+        - createdAt
+        - updatedAt
+
+    UpdateDriverStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [AVAILABLE, OFFLINE]
+      required:
+        - status
+
+    UpdateDriverProfileRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+        licenseNumber:
+          type: string
+        vehicleMake:
+          type: string
+        vehicleModel:
+          type: string
+        vehicleYear:
+          type: number
+        vehicleColor:
+          type: string
+        vehiclePlate:
+          type: string
+
+    NearbyDriver:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        vehicleMake:
+          type: string
+          nullable: true
+        vehicleModel:
+          type: string
+          nullable: true
+        vehicleColor:
+          type: string
+          nullable: true
+        vehiclePlate:
+          type: string
+          nullable: true
+        currentLat:
+          type: number
+        currentLng:
+          type: number
+        distanceKm:
+          type: number
+        rating:
+          type: number
+          nullable: true
+      required:
+        - id
+        - firstName
+        - lastName
+        - currentLat
+        - currentLng
+        - distanceKm
+
+    DriversListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriverDetails"
+        total:
+          type: number
+        page:
+          type: number
+        limit:
+          type: number
+        totalPages:
+          type: number
+      required:
+        - data
+        - total
+        - page
+        - limit
+        - totalPages
+
+    AssignZoneRequest:
+      type: object
+      properties:
+        zoneId:
+          type: string
+      required:
+        - zoneId
+
+    Trip:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        driverId:
+          type: string
+          nullable: true
+        cityId:
+          type: string
+          nullable: true
+        pickupLat:
+          type: number
+        pickupLng:
+          type: number
+        pickupAddress:
+          type: string
+        dropoffLat:
+          type: number
+        dropoffLng:
+          type: number
+        dropoffAddress:
+          type: string
+        status:
+          type: string
+          enum: [REQUESTED, DRIVER_ASSIGNED, DRIVER_ACCEPTED, DRIVER_REJECTED, DRIVER_EN_ROUTE, DRIVER_ARRIVED, TRIP_STARTED, TRIP_COMPLETED, TRIP_CANCELLED, DRIVER_NO_RESPONSE, TIMEOUT]
+        distanceKm:
+          type: number
+          nullable: true
+        estimatedFare:
+          type: number
+          nullable: true
+        finalFare:
+          type: number
+          nullable: true
+        currency:
+          type: string
+        paymentMethod:
+          type: string
+          enum: [cash, card, online]
+        cancellationReason:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        requestedAt:
+          type: string
+          format: date-time
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - customerId
+        - pickupLat
+        - pickupLng
+        - pickupAddress
+        - dropoffLat
+        - dropoffLng
+        - dropoffAddress
+        - status
+        - currency
+        - paymentMethod
+        - requestedAt
+        - createdAt
+        - updatedAt
+
+    TripDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        driverId:
+          type: string
+          nullable: true
+        cityId:
+          type: string
+          nullable: true
+        pickupLat:
+          type: number
+        pickupLng:
+          type: number
+        pickupAddress:
+          type: string
+        dropoffLat:
+          type: number
+        dropoffLng:
+          type: number
+        dropoffAddress:
+          type: string
+        status:
+          type: string
+          enum: [REQUESTED, DRIVER_ASSIGNED, DRIVER_ACCEPTED, DRIVER_REJECTED, DRIVER_EN_ROUTE, DRIVER_ARRIVED, TRIP_STARTED, TRIP_COMPLETED, TRIP_CANCELLED, DRIVER_NO_RESPONSE, TIMEOUT]
+        distanceKm:
+          type: number
+          nullable: true
+        estimatedFare:
+          type: number
+          nullable: true
+        finalFare:
+          type: number
+          nullable: true
+        currency:
+          type: string
+        paymentMethod:
+          type: string
+          enum: [cash, card, online]
+        cancellationReason:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        requestedAt:
+          type: string
+          format: date-time
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        customer:
+          $ref: "#/components/schemas/UserProfile"
+        driver:
+          $ref: "#/components/schemas/DriverDetails"
+          nullable: true
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/TripEvent"
+        payment:
+          $ref: "#/components/schemas/Payment"
+          nullable: true
+      required:
+        - id
+        - customerId
+        - pickupLat
+        - pickupLng
+        - pickupAddress
+        - dropoffLat
+        - dropoffLng
+        - dropoffAddress
+        - status
+        - currency
+        - paymentMethod
+        - requestedAt
+        - createdAt
+        - updatedAt
+        - customer
+        - events
+
+    TripEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        tripId:
+          type: string
+        status:
+          type: string
+        actorId:
+          type: string
+          nullable: true
+        actorRole:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tripId
+        - status
+        - createdAt
+
+    CreateTripRequest:
+      type: object
+      properties:
+        pickupLat:
+          type: number
+        pickupLng:
+          type: number
+        pickupAddress:
+          type: string
+        dropoffLat:
+          type: number
+        dropoffLng:
+          type: number
+        dropoffAddress:
+          type: string
+        paymentMethod:
+          type: string
+          enum: [cash, card, online]
+        notes:
+          type: string
+        cityId:
+          type: string
+      required:
+        - pickupLat
+        - pickupLng
+        - pickupAddress
+        - dropoffLat
+        - dropoffLng
+        - dropoffAddress
+        - paymentMethod
+
+    UpdateTripStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [DRIVER_ACCEPTED, DRIVER_REJECTED, DRIVER_EN_ROUTE, DRIVER_ARRIVED, TRIP_STARTED, TRIP_COMPLETED]
+        metadata:
+          type: object
+          additionalProperties: true
+      required:
+        - status
+
+    CancelTripRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
+
+    TripsListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trip"
+        total:
+          type: number
+        page:
+          type: number
+        limit:
+          type: number
+        totalPages:
+          type: number
+      required:
+        - data
+        - total
+        - page
+        - limit
+        - totalPages
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        tripId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        method:
+          type: string
+          enum: [cash, card, online]
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, FAILED, REFUNDED]
+        transactionId:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tripId
+        - amount
+        - currency
+        - method
+        - status
+        - createdAt
+        - updatedAt
+
+    PaymentsListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        total:
+          type: number
+        page:
+          type: number
+        limit:
+          type: number
+        totalPages:
+          type: number
+      required:
+        - data
+        - total
+        - page
+        - limit
+        - totalPages
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: string
+          nullable: true
+        action:
+          type: string
+        actorId:
+          type: string
+          nullable: true
+        actorRole:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - entity
+        - action
+        - createdAt
+
+    AuditLogsListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+        total:
+          type: number
+        page:
+          type: number
+        limit:
+          type: number
+        totalPages:
+          type: number
+      required:
+        - data
+        - total
+        - page
+        - limit
+        - totalPages
+
+    AdminStats:
+      type: object
+      properties:
+        totalDrivers:
+          type: number
+        activeDrivers:
+          type: number
+        totalCustomers:
+          type: number
+        totalTrips:
+          type: number
+        activeTrips:
+          type: number
+        completedTrips:
+          type: number
+        cancelledTrips:
+          type: number
+        totalRevenue:
+          type: number
+        totalCities:
+          type: number
+        totalZones:
+          type: number
+      required:
+        - totalDrivers
+        - activeDrivers
+        - totalCustomers
+        - totalTrips
+        - activeTrips
+        - completedTrips
+        - cancelledTrips
+        - totalRevenue
+        - totalCities
+        - totalZones
+
+    CustomerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        preferredPaymentMethod:
+          type: string
+          nullable: true
+        totalTrips:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - email
+        - firstName
+        - lastName
+        - totalTrips
+        - createdAt
+        - updatedAt
+
+    UpdateCustomerProfileRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+        preferredPaymentMethod:
+          type: string
+          enum: [cash, card, online]
+
+    RouteEstimateRequest:
+      type: object
+      properties:
+        fromLat:
+          type: number
+        fromLng:
+          type: number
+        toLat:
+          type: number
+        toLng:
+          type: number
+      required:
+        - fromLat
+        - fromLng
+        - toLat
+        - toLng
+
+    RouteEstimate:
+      type: object
+      properties:
+        distanceKm:
+          type: number
+        durationMinutes:
+          type: number
+        estimatedFare:
+          type: number
+        currency:
+          type: string
+      required:
+        - distanceKm
+        - durationMinutes
+        - estimatedFare
+        - currency

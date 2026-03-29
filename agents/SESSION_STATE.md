@@ -1,0 +1,220 @@
+# SESSION_STATE
+
+Last updated: 2026-03-19
+
+## Current Phase
+
+Phase 1 stabilization and production runtime hardening.
+
+## Current Priority
+
+Finish remaining operational hardening and highest-risk follow-up before treating first production deployment as low-risk.
+
+## Latest Confirmed State
+
+- The repository is a backend-first monorepo with `agents/`, `spec/`, `artifacts/api-server/`, `artifacts/gnncab/`, and `lib/db/`.
+- A production-paranoid deploy-readiness audit is now complete:
+  - first production deployment is currently blocked
+  - blocker closure planning is now the tracked work
+- The backend bootstrap attaches WebSocket to the HTTP server and runs startup cleanup before accepting traffic.
+- PM2 readiness mismatch was confirmed and patched:
+  - `deploy/ecosystem.config.cjs` uses `wait_ready: true`
+  - `artifacts/api-server/src/index.ts` now sends `process.send?.("ready")` inside the `server.listen(...)` callback
+- The ready signal placement was verified by code inspection:
+  - it fires only after the HTTP server is listening
+  - WebSocket setup and startup cleanup still happen before readiness
+- Cluster mode was audited and confirmed unsafe by default without Redis/pubsub.
+- Production PM2 defaults were changed to a single-worker safe mode:
+  - `instances: 1`
+  - `exec_mode: "fork"`
+- Browser/runtime boundary hardening is now in place:
+  - `ALLOWED_ORIGINS` must be present and non-empty
+  - wildcard and unsafe origin values now fail closed at startup
+  - HTTP CORS now uses the explicit origin allowlist only
+  - WebSocket browser-origin validation now enforces the same allowlist
+- Browser WebSocket auth transport is now hardened:
+  - browser clients no longer send JWT in the WebSocket URL query string
+  - browser clients now send the JWT via WebSocket subprotocol
+  - server authentication now prefers the subprotocol token
+  - browser-style requests that send `Origin` can no longer use query-token fallback
+  - temporary server-side query-token fallback now remains only for compatibility-oriented no-`Origin` requests
+  - successful no-`Origin` query-token fallback authentication now emits narrow server-side observability logs
+  - no JWT/token value is logged, and auth behavior remains unchanged
+- Legacy hosted-IDE metadata retirement is now complete at repository metadata level:
+  - no active runtime, build, deploy, or operational dependency on legacy hosted-IDE metadata was found
+  - non-doc legacy hosted-IDE metadata leftovers are removed
+  - markdown/spec/process docs and `scripts/post-merge.sh` were intentionally left untouched
+- Blocker 1 clean-clone closure is now verified:
+  - backend runtime no longer depends on a missing/untracked `pubsub` module
+  - `artifacts/api-server/src/lib/pubsub.ts` is now a tracked runtime module
+  - `artifacts/api-server/package.json` now includes the required runtime dependency for `pubsub`
+  - `pnpm-lock.yaml` now reflects the minimal backend dependency graph for that slice
+  - `artifacts/api-server/src/lib/websocket.ts` required no code change
+  - frontend websocket authority is now clean-clone complete
+  - exactly one authoritative frontend websocket hook implementation remains in the deployable revision
+- Blocker 2 deployment-truth alignment is now closed at the content/behavior level:
+  - `deploy/setup.sh` now uses the canonical repo URL `https://github.com/BigDesigner/GNNcab`
+  - `deploy/setup.sh` and `deploy/update.sh` now use the deploy branch `master`
+  - local-domain / local-Ubuntu setup no longer forces Certbot/TLS bootstrap
+  - `deploy/update.sh` now requires explicit `DOMAIN`
+  - `deploy/update.sh` now re-renders and applies the repo nginx template before `nginx -t` / reload
+  - `DEPLOYMENT.md` now matches the explicit DOMAIN-driven update flow and verified single-worker safe mode
+  - real Linux shell syntax validation for the deploy scripts still remains as an operational check, not an open blocker
+- Blocker 3 production-bootstrap hardening is now closed at the patch/content level:
+  - production deploy no longer runs the shared seed script
+  - `deploy/setup.sh` now points operators to an explicit admin bootstrap step
+  - `scripts/src/bootstrap-admin.ts` now provides the explicit first-admin bootstrap path
+  - bootstrap creates exactly one admin only
+  - bootstrap aborts if an admin already exists or if the requested email already exists unexpectedly
+  - bootstrap validates email/password and hashes the password before insert
+  - development seed remains available, but `scripts/src/seed.ts` now aborts in production
+- Blocker 4 Slice A database deployment discipline is now closed at the patch/content level:
+  - production setup/update no longer use live `drizzle-kit push` as the authoritative production path
+  - checked-in Drizzle migrations are now the production schema path
+  - `lib/db/package.json` now provides authoritative `migrate` and `generate` scripts
+  - `deploy/update.sh` now requires a successful local backup gate before DB-changing migration
+  - `deploy/setup.sh` is now limited to new/empty DB bootstrap only
+  - `deploy/setup.sh` now aborts if it detects an existing non-empty DB
+  - `DEPLOYMENT.md` now reflects the checked-in migration and backup-gated update truth
+  - real Linux shell syntax validation for the deploy scripts still remains as an operational check, not a blocker closure condition
+- Blocker 4 Slice B backup / restore hardening is now closed at the patch/content level:
+  - `deploy/backup.sh` now publishes final backup files only after successful dump, gzip integrity verification, and checksum creation
+  - backup verification now checks both gzip integrity and checksum when available
+  - destructive live restore now requires stronger explicit confirmation plus an emergency local full backup first
+  - restore now aborts if the expected DB owner role is missing before database recreation
+  - `DEPLOYMENT.md` now includes an executable downtime-based rollback / restore runbook
+  - real Linux shell syntax validation for the backup / restore scripts still remains as an operational check, not a blocker closure condition
+- Production routing mode decision is now closed at the patch/content level:
+  - `ROUTING_PROVIDER` must now be explicitly set to `mock` or `osrm`
+  - production now fails closed unless `ROUTING_PROVIDER="osrm"`
+  - `OSRM_BASE_URL` is now required when `ROUTING_PROVIDER="osrm"`
+  - production OSRM failures no longer degrade to straight-line/mock routing
+  - `.env.example` and `DEPLOYMENT.md` now document `mock` as local/dev-only and `osrm` as the production-safe path
+- Backup artifact publication now also has an explicit no-overwrite guard:
+  - `deploy/backup.sh` now aborts if the final archive path already exists
+  - `deploy/backup.sh` now aborts if the final checksum path already exists
+  - the temp-file -> verify -> move flow remains in place
+- Local PostgreSQL backup invocation/auth truth is now aligned:
+  - `deploy/backup.sh` now routes local PostgreSQL access through the `postgres` OS user context
+  - root/manual backup use, update-time backup gate use, and restore-time emergency backup use now follow one consistent local invocation model
+  - deployment-facing documentation now matches that local backup invocation truth
+- Real Ubuntu deploy-script shell validation is now complete:
+  - `bash -n` passed for `deploy/setup.sh`, `deploy/update.sh`, `deploy/backup.sh`, and `deploy/backup-restore.sh`
+  - `shellcheck deploy/*.sh` was also run on Ubuntu
+- Deploy shellcheck hardening is now complete for the Ubuntu-reported target files:
+  - `deploy/setup.sh`
+  - `deploy/backup.sh`
+  - `deploy/security-hardening.sh`
+  - real Ubuntu shellcheck is now clean for those patched targets
+- Release packaging flow is now implemented on `master`:
+  - latest controlled commit is `bd2773c072020ac189af9d89918fb01267c4867e` (`fix(deploy): harden shellcheck findings in deploy scripts`)
+  - reproducible generated output now builds under `release/gnncab-deploy`
+  - `release/` is generated output only and remains outside the maintained source tree for normal repo review/audit/patch work
+- `master` is currently clean:
+  - no pending working-tree changes remain on `master`
+  - unrelated dirty development state was parked on `codex/parking/pre-shellcheck-dirty-worktree`
+
+## Current Open Risks
+
+- The tracked deploy-blocker set is now closed at the patch/content level, but production still has remaining operational hardening and high-risk follow-up before a low-risk launch decision.
+- Remaining immediate follow-up:
+  - health endpoint depth / readiness signal quality
+- Startup cleanup audit is now complete:
+  - boot repair now handles:
+    - the highest-risk `DRIVER_ASSIGNED` + released-driver divergence case
+    - orphaned `REQUESTED` trips whose async initial dispatch never resumed after restart
+    - persisted `DRIVER_NO_RESPONSE` and `DRIVER_REJECTED` trips now also resume through boot-time `tryRedispatch(...)`
+- Remaining startup-cleanup risk:
+  - boot-time continuity for the main retryable dispatch states is now implemented
+  - full production runtime validation after restart is still not yet performed
+- CORS and WebSocket browser-origin hardening are now implemented and type-checked.
+- Remaining WebSocket auth transport risk:
+  - server-side query-token fallback still exists for no-`Origin` compatibility requests
+  - fallback-hit observability now exists for successful no-`Origin` query-token authentication
+  - full fallback retirement is now a post-deploy/runtime validation task gated by a 7-day production telemetry review:
+    - `"[WS] Query-token fallback authenticated for no-Origin request"` must show zero hits
+    - healthy WebSocket traffic must be present in the same window
+    - there must be no known logging gaps
+    - there must be no known external/non-browser/native dependency on query-token fallback
+- High-risk but non-blocking follow-up after the hard blockers:
+  - health endpoint depth / readiness signal quality
+  - `.env.example` alignment with runtime truth
+  - localStorage JWT / XSS posture
+  - no-`Origin` WebSocket query-token fallback final retirement
+  - backup / restore operational drill
+- Long-term realtime scaling direction is unresolved:
+  - keep single-worker production
+  - or provision Redis and restore safe multi-worker operation
+
+## Exact Current Point of Progress
+
+- Verified fixes completed:
+  - PM2 readiness signaling
+  - single-worker PM2 safe default
+- Verified documentation alignment completed:
+  - deployment-facing markdown now reflects the single-worker PM2 default
+  - cluster mode is documented as requiring Redis/pubsub first
+- No Redis provisioning or realtime architecture change has been applied.
+- Startup cleanup analysis completed:
+  - confirmed original partial boot repair
+  - highest-risk divergence case has now been patched and verified
+  - orphaned `REQUESTED` recovery has now been patched and verified
+- Remaining orphan-state continuity completed:
+  - persisted `DRIVER_NO_RESPONSE` and `DRIVER_REJECTED` trips are now selected at boot and resumed through existing `tryRedispatch(...)`
+- Manual-review shortlist prepared for remaining high-impact non-stabilization files:
+  - package/workspace manifests
+  - driver schema change
+  - frontend WebSocket hook migration
+- Verified repository-metadata cleanup completed:
+  - non-doc legacy hosted-IDE metadata leftovers are removed
+  - no active runtime/build/deploy dependency on legacy hosted-IDE metadata was found
+  - docs and `scripts/post-merge.sh` remain intentionally untouched
+- Verified backend half of Blocker 1 completed:
+  - `websocket.ts -> pubsub` clean-clone runtime path is now complete
+  - backend manifest/lock state now includes the required `ioredis` dependency graph
+- Verified full Blocker 1 completed:
+  - frontend websocket authority slice is now resolved
+  - the clean deployable revision no longer carries legacy frontend websocket-hook ambiguity
+- Verified browser-boundary hardening completed:
+  - strict HTTP CORS allowlist
+  - strict browser WebSocket origin validation
+  - browser WebSocket JWT removed from URL query string
+  - browser WebSocket JWT now sent via subprotocol
+  - browser-style requests can no longer authenticate through query-token fallback
+- Verified Blocker 2 completed at the content/behavior level:
+  - deploy setup/update/docs now match the canonical repo, branch, DOMAIN-driven nginx flow, and single-worker operating model
+- Verified Blocker 3 completed at the patch/content level:
+  - production deploy no longer seeds admin/sample data
+  - first admin creation is now explicit CLI bootstrap only
+  - development seed remains available but is now guarded against production use
+- Verified Blocker 4 Slice A completed at the patch/content level:
+  - production setup/update now use checked-in Drizzle migrations instead of live `push`
+  - update now requires a successful local backup gate before DB-changing migration
+  - setup is now limited to new/empty DB bootstrap and aborts on an existing non-empty DB
+- Verified Blocker 4 Slice B completed at the patch/content level:
+  - backup publication is now temp-file based and verification-gated
+  - restore now requires explicit destructive confirmation and an emergency local full backup for live primary restores
+  - an executable downtime-based rollback / restore runbook is now documented in `DEPLOYMENT.md`
+- Verified production routing mode blocker completed at the patch/content level:
+  - routing provider selection is now explicit
+  - production cannot silently fall back to `mock`
+  - production OSRM failures now fail closed instead of degrading to straight-line routing
+- Verified backup artifact no-overwrite guard completed at the patch/content level:
+  - `deploy/backup.sh` now refuses to overwrite an existing final archive path
+  - `deploy/backup.sh` now refuses to overwrite an existing final checksum path
+- Verified deploy backup invocation/auth consistency completed at the patch/content level:
+  - local PostgreSQL access for backups now runs through the `postgres` OS user context
+  - manual/root backup use, update-time backup gate use, and restore-time emergency backup use now share one consistent invocation model
+  - `DEPLOYMENT.md` now matches that local backup/auth truth
+- Verified real Ubuntu deploy-script shell validation completed:
+  - `bash -n` passed for `deploy/setup.sh`, `deploy/update.sh`, `deploy/backup.sh`, and `deploy/backup-restore.sh`
+  - `shellcheck` was run on Ubuntu
+- Verified deploy shellcheck hardening completed:
+  - `deploy/setup.sh`, `deploy/backup.sh`, and `deploy/security-hardening.sh` now have their recorded narrow shellcheck fixes
+  - real Ubuntu shellcheck is now clean for those patched target files
+- Verified release packaging flow completed on `master`:
+  - reproducible deploy packaging now builds under `release/gnncab-deploy`
+  - `release/` remains generated output only and is excluded from normal maintained-source review
+- Next safe work area is now high-risk follow-up, starting with health/readiness depth:
+  - deepen health/readiness beyond the current shallow health endpoint
+  - keep the WebSocket telemetry review as a later runtime validation task, not the immediate coding blocker

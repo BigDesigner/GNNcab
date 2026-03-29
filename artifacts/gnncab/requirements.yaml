@@ -1,0 +1,25 @@
+packages:
+  "leaflet": "Interactive maps for tracking drivers and setting locations"
+  "react-leaflet": "React bindings for Leaflet maps"
+  "@types/leaflet": "TypeScript definitions for Leaflet"
+  "framer-motion": "Smooth entry animations and micro-interactions"
+  "recharts": "Data visualization for admin dashboard"
+  "date-fns": "Formatting dates and times"
+  "clsx": "Utility for constructing className strings"
+  "tailwind-merge": "Utility for merging tailwind classes"
+  "lucide-react": "Beautiful icons"
+  "wouter": "Lightweight routing"
+  "@tanstack/react-query": "Data fetching"
+
+images:
+  - path: "artifacts/gnncab/public/images/login-bg.png"
+    description: "Dark, sleek, cinematic nighttime city street with glowing amber streetlights and blurred traffic trails, conveying modern logistics and transportation"
+    aspect_ratio: "16:9"
+  - path: "artifacts/gnncab/public/images/logo.png"
+    description: "Minimalist, premium logo mark featuring a stylized geometric 'G' intersecting with a road or map pin, glowing amber on transparent dark background"
+    aspect_ratio: "1:1"
+
+notes:
+  - WebSocket connects to /ws for real-time location and trip updates
+  - JWT is stored in localStorage and attached via a fetch interceptor
+  - App relies on auto-generated React Query hooks from @workspace/api-client-react

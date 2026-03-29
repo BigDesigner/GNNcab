@@ -1,0 +1,96 @@
+# =============================================================================
+# GNNcab — fail2ban jail configuration
+# Install to: /etc/fail2ban/jail.local
+#
+# This file overrides /etc/fail2ban/jail.conf.
+# The setup.sh script copies this file automatically.
+# After changes: sudo systemctl reload fail2ban
+# Status: sudo fail2ban-client status [jail-name]
+# Unban: sudo fail2ban-client set <jail> unbanip <ip>
+# =============================================================================
+
+[DEFAULT]
+# Global defaults
+bantime   = 3600          # 1-hour ban
+findtime  = 600           # 10-minute detection window
+maxretry  = 5
+ignoreip  = 127.0.0.1/8 ::1
+# Use UFW as the ban action (best for UFW-managed firewalls)
+banaction = ufw
+# Logging
+loglevel  = INFO
+logtarget = /var/log/fail2ban.log
+
+# =============================================================================
+# SSH — brute force protection
+# =============================================================================
+[sshd]
+enabled   = true
+port      = SSH_PORT_PLACEHOLDER
+filter    = sshd
+backend   = systemd
+logpath   = /var/log/auth.log
+maxretry  = 3
+findtime  = 600
+bantime   = 86400         # 24 hours for SSH brute force
+
+# =============================================================================
+# Nginx — HTTP basic auth failures
+# =============================================================================
+[nginx-http-auth]
+enabled  = true
+port     = http,https
+filter   = nginx-http-auth
+logpath  = /var/log/nginx/gnncab_error.log
+maxretry = 5
+bantime  = 3600
+
+# =============================================================================
+# Nginx — scanning / bad bots (404 floods)
+# =============================================================================
+[nginx-botsearch]
+enabled  = true
+port     = http,https
+filter   = nginx-botsearch
+logpath  = /var/log/nginx/gnncab_access.log
+maxretry = 10
+findtime = 60
+bantime  = 7200
+
+# =============================================================================
+# GNNcab — API authentication failures (401 responses)
+# Targets repeated login failures on /api/auth/login and /api/auth/register
+# =============================================================================
+[gnncab-auth]
+enabled  = true
+port     = http,https
+filter   = gnncab-auth
+logpath  = /var/log/nginx/gnncab_access.log
+maxretry = 10
+findtime = 300            # 5-minute window
+bantime  = 7200           # 2-hour ban
+
+# =============================================================================
+# GNNcab — Rate limit abuse (429 responses from Nginx)
+# Protects against API scrapers and denial-of-service via request flooding
+# =============================================================================
+[gnncab-ratelimit]
+enabled  = true
+port     = http,https
+filter   = gnncab-ratelimit
+logpath  = /var/log/nginx/gnncab_access.log
+maxretry = 20
+findtime = 60             # 1-minute window
+bantime  = 3600
+
+# =============================================================================
+# GNNcab — WebSocket abuse (too many WS connections from one IP)
+# =============================================================================
+[gnncab-ws-abuse]
+enabled  = true
+port     = http,https
+filter   = gnncab-ws-abuse
+logpath  = /var/log/nginx/gnncab_access.log
+maxretry = 15
+findtime = 60
+bantime  = 3600

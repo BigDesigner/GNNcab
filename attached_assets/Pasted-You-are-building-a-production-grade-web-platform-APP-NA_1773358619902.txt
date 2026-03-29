@@ -1,0 +1,462 @@
+You are building a production-grade web platform.
+
+APP NAME: GNNcab
+
+IMPORTANT CONTEXT
+
+The cloud IDE is ONLY the development environment.
+
+The platform must NOT depend on proprietary hosted-IDE services.
+All code must be portable and deployable to a standard Linux server.
+
+The intended production environment is:
+
+DigitalOcean Ubuntu VM
+Nginx reverse proxy
+Node.js backend
+PostgreSQL database
+PM2 process manager
+HTTPS via Let's Encrypt
+
+The application must be fully portable and deployable outside the development IDE.
+
+--------------------------------------------------
+
+PROJECT PURPOSE
+
+GNNcab is a secure multi-city ride dispatch and driver tracking platform designed for local transportation networks.
+
+Initial live deployment may start small, but the architecture must be designed for large scale expansion.
+
+Design the system so it can evolve to support:
+
+500+ cities
+thousands of zones
+10,000+ drivers
+high trip volumes
+horizontal scaling
+separation of services in the future
+
+Initial deployment may be simple.
+Architecture must be scalable by design.
+
+--------------------------------------------------
+
+TECH STACK
+
+Backend
+Node.js
+TypeScript
+Express
+
+Frontend
+React
+Vite
+TypeScript
+
+Database
+PostgreSQL
+
+ORM
+Prisma
+
+Authentication
+bcrypt password hashing
+JWT authentication
+secure HTTP-only cookies where appropriate
+
+Validation
+Zod
+
+Security
+helmet
+express-rate-limit
+CORS protection
+input sanitization
+XSS protection
+CSRF protection
+
+Realtime
+WebSocket
+
+Maps
+OpenStreetMap
+
+Routing
+OSRM-ready architecture
+
+Testing
+Vitest or Jest
+
+PWA
+Service Worker
+manifest.json
+
+--------------------------------------------------
+
+PROJECT STRUCTURE
+
+Generate a scalable structure:
+
+/client
+/server
+/shared
+/prisma
+/config
+/scripts
+/tests
+/docs
+
+Also create:
+
+.env.example
+README.md
+deployment notes
+security notes
+database migration instructions
+
+--------------------------------------------------
+
+PHASE 1 — SECURE CORE SYSTEM
+
+Phase 1 must be fully implemented.
+
+Security and auditability are the top priority.
+
+--------------------------------------------------
+
+1 SECURITY FOUNDATION
+
+Implement strong security.
+
+Requirements:
+
+bcrypt password hashing
+JWT authentication
+secure cookie handling
+RBAC authorization
+
+Roles:
+
+admin
+driver
+customer
+
+Each role must access only authorized resources.
+
+Security protections:
+
+rate limiting
+brute force protection
+input validation using Zod
+sanitization
+XSS mitigation
+CSRF protection where applicable
+secure HTTP headers via helmet
+secure CORS configuration
+
+Admin endpoints must have stricter protection.
+
+Centralized authentication middleware.
+
+Centralized error handling.
+
+--------------------------------------------------
+
+2 DATABASE
+
+Use PostgreSQL with Prisma ORM.
+
+Create schemas for:
+
+User
+AdminProfile
+DriverProfile
+CustomerProfile
+Vehicle
+City
+Zone
+DriverZoneAssignment
+Trip
+TripEvent
+DriverLocation
+Payment
+AuditLog
+AdminAction
+Session or RefreshToken
+
+Use Prisma migrations.
+
+Add seed script for:
+
+default admin
+sample city
+sample zones
+sample drivers
+
+Credentials must not be insecure in production code.
+
+--------------------------------------------------
+
+3 CITY AND ZONE ARCHITECTURE
+
+Even if the first deployment runs one city, architecture must support many cities.
+
+Implement:
+
+City model
+Zone model
+polygon boundaries for zones
+driver-to-zone assignment
+dispatch eligibility based on zone
+
+Zone polygons must store coordinate arrays.
+
+Admin API must allow:
+
+create city
+create zone
+assign driver to zones
+edit zone boundaries
+
+--------------------------------------------------
+
+4 TRIP LIFECYCLE
+
+Implement a fully auditable trip lifecycle.
+
+Trip statuses:
+
+REQUESTED
+DRIVER_ASSIGNED
+DRIVER_ACCEPTED
+DRIVER_REJECTED
+DRIVER_EN_ROUTE
+DRIVER_ARRIVED
+TRIP_STARTED
+TRIP_COMPLETED
+TRIP_CANCELLED
+DRIVER_NO_RESPONSE
+TIMEOUT
+
+Rules:
+
+every transition creates TripEvent
+timestamps recorded
+invalid transitions rejected
+cancellation reason stored
+actor information stored
+
+Trip history must be queryable by admin.
+
+--------------------------------------------------
+
+5 REALTIME DRIVER TRACKING
+
+Use WebSocket.
+
+Driver sends periodic location updates.
+
+Backend must:
+
+validate driver identity
+store last location
+broadcast relevant updates
+
+Customer interface must show nearby drivers.
+
+WebSocket must require authentication.
+
+--------------------------------------------------
+
+6 PAYMENT FOUNDATION
+
+Create payment-ready architecture.
+
+Support payment methods:
+
+cash
+card
+online-ready placeholder
+
+Payments must link to trips.
+
+Fields:
+
+amount
+currency
+status
+payment method
+
+--------------------------------------------------
+
+7 DISPATCH ENGINE
+
+Implement automatic driver assignment.
+
+Logic:
+
+find nearest available driver
+check zone eligibility
+check driver availability
+dispatch request
+driver accept/reject
+timeout handling
+reassignment
+queue if none available
+
+Dispatch logic must be modular.
+
+--------------------------------------------------
+
+8 ROUTING AND ETA
+
+Build routing abstraction.
+
+Prepare integration for OSRM.
+
+Provide services for:
+
+distance calculation
+ETA estimation
+driver arrival estimation
+
+Do not tightly couple map UI to routing provider.
+
+--------------------------------------------------
+
+9 LOGGING AND AUDIT
+
+Implement structured logging.
+
+Create:
+
+AuditLog
+AdminAction
+
+Log:
+
+authentication events
+admin actions
+trip lifecycle changes
+driver status changes
+payment changes
+security events
+
+--------------------------------------------------
+
+10 OPERATIONAL READINESS
+
+Prepare production deployment.
+
+Provide:
+
+.env.example
+config separation for dev and prod
+Prisma migration scripts
+database seed scripts
+build scripts
+start scripts
+backup strategy documentation
+security hardening notes
+basic automated tests
+
+README must include:
+
+local development
+cloud IDE development
+DigitalOcean deployment overview
+environment variables
+migration steps
+
+--------------------------------------------------
+
+ADMIN PANEL
+
+Admin dashboard must include:
+
+city management
+zone management
+driver management
+zone assignment
+trip monitoring
+payment overview
+audit visibility
+
+--------------------------------------------------
+
+DRIVER PANEL
+
+Driver dashboard must include:
+
+secure login
+online/offline toggle
+trip requests
+accept/reject trip
+trip lifecycle actions
+location updates
+trip history
+
+--------------------------------------------------
+
+CUSTOMER PANEL
+
+Customer interface must include:
+
+map view
+nearby drivers
+trip request
+trip tracking
+payment method selection
+trip history
+
+--------------------------------------------------
+
+PWA
+
+Implement production-safe PWA.
+
+Include:
+
+manifest.json
+service worker
+installable support
+safe cache strategy
+offline fallback
+
+--------------------------------------------------
+
+PHASE 2 PREPARATION
+
+Prepare architecture for:
+
+advanced pricing engine
+dispatch optimization
+analytics
+notifications
+improved PWA
+
+Do not fully implement yet.
+
+--------------------------------------------------
+
+PHASE 3 PREPARATION
+
+Prepare architecture for:
+
+driver ratings
+customer ratings
+surge pricing
+mobile applications
+
+--------------------------------------------------
+
+FINAL GOAL
+
+Generate a secure, scalable, production-ready foundation for the GNNcab platform.
+
+Phase 1 must be fully implemented.
+
+Phase 2 and Phase 3 must have modular architecture prepared.
+
+The code must be clean, secure, portable, and suitable for deployment on a DigitalOcean VM.
